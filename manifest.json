@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "ShortFeed — Sort, Outlier Score, Player & Export",
+  "short_name": "ShortFeed",
+  "version": "1.0.0",
+  "description": "Sort Instagram, TikTok, YouTube & Facebook feeds by Views, Likes, or Outlier Score. Watch in an in-page player, transcribe, save & export to Sheets/CSV/Excel/JSON.",
+  "permissions": [
+    "storage",
+    "downloads",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.instagram.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.youtube.com/*",
+    "*://*.facebook.com/*",
+    "*://*.fbcdn.net/*",
+    "*://*.cdninstagram.com/*"
+  ],
+  "action": {
+    "default_title": "ShortFeed — Sort by Views or Outlier Score",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.youtube.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": ["content/page-interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.youtube.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "css": ["content/content.css"],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "library/*",
+        "content/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

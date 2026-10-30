@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShortFeed</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="sf-popup">
+    <!-- Top Header -->
+    <header class="sf-header">
+      <div class="sf-brand">
+        <img src="../icons/icon32.png" alt="ShortFeed" class="sf-logo" />
+        <span class="sf-brand-name">ShortFeed</span>
+      </div>
+      <div class="sf-header-actions">
+        <span class="sf-plan-badge" title="All Pro features unlocked">PRO</span>
+        <button type="button" id="btnOpenLibrary" class="sf-icon-btn" title="Saved Library & Sandbox">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" class="sf-svg">
+            <path d="M5 3.5h10a1 1 0 0 1 1 1v12l-6-3.5L4 16.5v-12a1 1 0 0 1 1-1Z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="savedCountBadge" class="sf-saved-pill" hidden>0</span>
+        </button>
+        <button type="button" id="btnToggleSettings" class="sf-icon-btn" title="Settings">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" class="sf-svg">
+            <circle cx="10" cy="10" r="2.6"/>
+            <path d="M16.2 11.1a1.2 1.2 0 0 0 .24 1.32l.04.04a1.45 1.45 0 1 1-2.05 2.05l-.04-.04a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.12a1.45 1.45 0 0 1-2.9 0v-.06a1.2 1.2 0 0 0-.78-1.1 1.2 1.2 0 0 0-1.32.24l-.04.04a1.45 1.45 0 1 1-2.05-2.05l.04-.04a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73h-.12a1.45 1.45 0 0 1 0-2.9h.06a1.2 1.2 0 0 0 1.1-.78 1.2 1.2 0 0 0-.24-1.32l-.04-.04a1.45 1.45 0 1 1 2.05-2.05l.04.04a1.2 1.2 0 0 0 1.32.24h.06a1.2 1.2 0 0 0 .73-1.1v-.12a1.45 1.45 0 0 1 2.9 0v.06a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.04-.04a1.45 1.45 0 1 1 2.05 2.05l-.04.04a1.2 1.2 0 0 0-.24 1.32v.06a1.2 1.2 0 0 0 1.1.73h.12a1.45 1.45 0 0 1 0 2.9h-.06a1.2 1.2 0 0 0-1.1.73Z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Active Platform Status Chip -->
+    <div id="platformBanner" class="sf-platform-bar">
+      <span id="platformDot" class="sf-status-dot"></span>
+      <span id="platformLabel" class="sf-platform-text">Detecting page...</span>
+      <button type="button" id="btnTryDemoMode" class="sf-demo-link" title="Run interactive demo grid right now">Demo Feed</button>
+    </div>
+
+    <!-- Main Sort View -->
+    <main id="mainSortView" class="sf-main">
+      <!-- Filters Card -->
+      <section class="sf-section">
+        <div class="sf-section-label">Filters</div>
+        <div class="sf-card sf-filters-card">
+          <div class="sf-tabs" role="tablist">
+            <button type="button" id="tabPosts" class="sf-tab is-active" data-tab="posts" role="tab">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" class="sf-tab-icon">
+                <rect x="2" y="2" width="5" height="5" rx="1"/>
+                <rect x="9" y="2" width="5" height="5" rx="1"/>
+                <rect x="2" y="9" width="5" height="5" rx="1"/>
+                <rect x="9" y="9" width="5" height="5" rx="1"/>
+              </svg>
+              <span id="tabPostsLabel">Posts</span>
+            </button>
+            <button type="button" id="tabDate" class="sf-tab" data-tab="date" role="tab">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" class="sf-tab-icon">
+                <rect x="2" y="3" width="12" height="11" rx="1.8"/>
+                <path d="M5 1.8v2.4M11 1.8v2.4M2 6.5h12" stroke-linecap="round"/>
+              </svg>
+              <span>Date</span>
+            </button>
+          </div>
+
+          <!-- Posts Count Selector -->
+          <div id="panelPosts" class="sf-tab-panel">
+            <div class="sf-select-wrap">
+              <select id="selectPostCount" class="sf-select">
+                <option value="25">Latest 25 Posts</option>
+                <option value="50" selected>Latest 50 Posts</option>
+                <option value="100">Latest 100 Posts</option>
+                <option value="200">Latest 200 Posts</option>
+                <option value="1000">Latest 1K Posts</option>
+                <option value="all">All Posts</option>
+                <option value="custom">Custom Posts...</option>
+              </select>
+            </div>
+            <div id="customPostWrap" class="sf-custom-row" hidden>
+              <label for="inputCustomPosts" class="sf-custom-label">Exact count</label>
+              <input type="number" id="inputCustomPosts" class="sf-input" min="5" max="5000" value="75" />
+            </div>
+          </div>
+
+          <!-- Date Range Selector -->
+          <div id="panelDate" class="sf-tab-panel" hidden>
+            <div class="sf-select-wrap">
+              <select id="selectDateRange" class="sf-select">
+                <option value="7d">1 Week Back</option>
+                <option value="30d" selected>1 Month Back</option>
+                <option value="90d">3 Months Back</option>
+                <option value="180d">6 Months Back</option>
+                <option value="365d">1 Year Back</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Date Range...</option>
+              </select>
+            </div>
+            <div id="customDateWrap" class="sf-custom-dates" hidden>
+              <input type="date" id="inputDateStart" class="sf-input" />
+              <span class="sf-date-sep">to</span>
+              <input type="date" id="inputDateEnd" class="sf-input" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sort By Card -->
+      <section class="sf-section">
+        <div class="sf-section-label">Sort by</div>
+        <div class="sf-card sf-sort-list" id="sortByList">
+          <button type="button" class="sf-sort-btn" data-metric="likes">
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M8 13.6s-5.5-3.4-5.5-7.2A3.2 3.2 0 0 1 8 4.2a3.2 3.2 0 0 1 5.5 2.2c0 3.8-5.5 7.2-5.5 7.2Z" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Likes</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn" data-metric="views">
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M5 3.5l7 4.5-7 4.5V3.5Z" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Views</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn sf-sort-highlight" data-metric="outlier">
+            <span class="sf-sort-icon sf-icon-amber">
+              <svg viewBox="0 0 16 16" fill="currentColor">
+                <path d="M9.2 1.5L3.8 8.6h4.1l-.9 5.9 5.6-7.1H8.5l.7-5.9Z"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Outlier score</span>
+            <span class="sf-outlier-pill">Breakouts</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn" data-metric="comments" id="btnSortComments">
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H6l-3.5 2.5V4Z" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Comments</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn" data-metric="shares" id="btnSortShares" hidden>
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M10 3l3.5 3.5L10 10M13 6.5H6.5a4 4 0 0 0-4 4V13" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Shares</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn" data-metric="saves" id="btnSortSaves" hidden>
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 2.5h8a.8.8 0 0 1 .8.8v10.2L8 10.6l-4.8 2.9V3.3a.8.8 0 0 1 .8-.8Z" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Saves</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+
+          <button type="button" class="sf-sort-btn" data-metric="oldest">
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <circle cx="8" cy="8" r="5.5"/>
+                <path d="M8 5v3.2l2.2 1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="sf-sort-name">Oldest</span>
+            <span class="sf-sort-arrow">→</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Quick Platform Jumpers -->
+      <div class="sf-quick-platforms">
+        <span class="sf-quick-title">Open platform:</span>
+        <button type="button" class="sf-plat-chip" data-url="https://www.instagram.com/">Instagram</button>
+        <button type="button" class="sf-plat-chip" data-url="https://www.tiktok.com/">TikTok</button>
+        <button type="button" class="sf-plat-chip" data-url="https://www.youtube.com/">YouTube</button>
+        <button type="button" class="sf-plat-chip" data-url="https://www.facebook.com/reels">Facebook</button>
+      </div>
+    </main>
+
+    <!-- Settings View -->
+    <section id="settingsView" class="sf-settings" hidden>
+      <div class="sf-settings-header">
+        <button type="button" id="btnBackFromSettings" class="sf-back-btn">← Back</button>
+        <span class="sf-settings-title">Display & Player Settings</span>
+      </div>
+
+      <div class="sf-card sf-settings-card">
+        <div class="sf-setting-row">
+          <div>
+            <div class="sf-setting-name">Posts open in</div>
+            <div class="sf-setting-sub">Open clicked cards in modal player or new tab</div>
+          </div>
+          <select id="settingOpenIn" class="sf-mini-select">
+            <option value="player">Player</option>
+            <option value="platform">New Tab</option>
+          </select>
+        </div>
+
+        <label class="sf-setting-row">
+          <div>
+            <div class="sf-setting-name">Save button <span class="sf-beta-tag">Beta</span></div>
+            <div class="sf-setting-sub">Show bookmark button on posts</div>
+          </div>
+          <input type="checkbox" id="settingShowSave" class="sf-toggle" checked />
+        </label>
+
+        <label class="sf-setting-row">
+          <div>
+            <div class="sf-setting-name">Download button</div>
+            <div class="sf-setting-sub">Show 1-click download on posts while browsing</div>
+          </div>
+          <input type="checkbox" id="settingShowDownload" class="sf-toggle" checked />
+        </label>
+
+        <label class="sf-setting-row">
+          <div>
+            <div class="sf-setting-name">Transcribe button</div>
+            <div class="sf-setting-sub">Show transcript generator button on videos</div>
+          </div>
+          <input type="checkbox" id="settingShowTranscribe" class="sf-toggle" checked />
+        </label>
+      </div>
+
+      <button type="button" id="btnOpenSandboxFull" class="sf-primary-btn">
+        Open Saved Posts & Interactive Sandbox ↗
+      </button>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

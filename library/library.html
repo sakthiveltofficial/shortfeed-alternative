@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShortFeed — Saved Library & Interactive Sandbox</title>
+  <link rel="stylesheet" href="library.css" />
+  <link rel="stylesheet" href="../content/content.css" />
+</head>
+<body>
+  <div class="sf-app-shell">
+    <!-- Left Sidebar (app.sortfeed.com layout) -->
+    <aside class="sf-sidebar">
+      <div class="sf-sidebar-brand">
+        <img src="../icons/icon32.png" alt="ShortFeed" class="sf-brand-icon" />
+        <div>
+          <div class="sf-brand-title">ShortFeed</div>
+          <div class="sf-brand-sub">Workspace & Swipe File</div>
+        </div>
+      </div>
+
+      <nav class="sf-side-nav">
+        <div class="sf-nav-group-title">Interactive Demo</div>
+        <button type="button" class="sf-nav-item is-active" data-view="sandbox">
+          <span>⚡ Live Sort Sandbox</span>
+          <span class="sf-nav-badge">Try it</span>
+        </button>
+
+        <div class="sf-nav-group-title">Your Saved Library</div>
+        <button type="button" class="sf-nav-item" data-view="all">
+          <span>🔖 All Saved Posts</span>
+          <span class="sf-nav-count" id="navCountAll">0</span>
+        </button>
+        <button type="button" class="sf-nav-item" data-view="profiles">
+          <span>👤 By Creator Profile</span>
+        </button>
+        <button type="button" class="sf-nav-item" data-view="platforms">
+          <span>🌐 By Platform</span>
+        </button>
+
+        <div class="sf-nav-group-row">
+          <span class="sf-nav-group-title">Collections</span>
+          <button type="button" id="btnNewCollection" class="sf-add-col-btn" title="Create Collection">+ New</button>
+        </div>
+        <div id="collectionsNavList" class="sf-col-list"></div>
+      </nav>
+
+      <div class="sf-sidebar-footer">
+        <div class="sf-pro-box">
+          <div class="sf-pro-title">PRO UNLOCKED</div>
+          <div class="sf-pro-desc">Unlimited sorting, outlier scores, transcripts, saves & exports.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="sf-workspace">
+      <!-- Top Search & Control Header for Library Views -->
+      <header class="sf-top-bar" id="libraryTopBar" hidden>
+        <div class="sf-search-wrap">
+          <input
+            type="search"
+            id="searchSavedInput"
+            class="sf-search-input"
+            placeholder="Search saved hooks, creators, captions, transcripts, notes or #tags..."
+          />
+        </div>
+        <div class="sf-top-controls">
+          <select id="sortSavedSelect" class="sf-ctrl-select">
+            <option value="savedAt">Sort: Newest Saved</option>
+            <option value="outlier">Sort: Outlier Score</option>
+            <option value="views">Sort: Views</option>
+            <option value="likes">Sort: Likes</option>
+            <option value="comments">Sort: Comments</option>
+          </select>
+          <button type="button" id="btnDownloadSavedZip" class="sf-btn-secondary">↓ Download All (.zip)</button>
+          <button type="button" id="btnExportSavedCsv" class="sf-btn-secondary">↑ Export Saved (CSV)</button>
+          <button type="button" id="btnSeedSampleSaves" class="sf-btn-primary">+ Load Sample Swipe File</button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: Interactive Creator Sandbox -->
+      <section id="viewSandbox" class="sf-view-section">
+        <div class="sf-sandbox-hero">
+          <div class="sf-profile-header">
+            <div class="sf-avatar-ring">ES</div>
+            <div class="sf-profile-meta">
+              <div class="sf-profile-handle-row">
+                <h1 class="sf-profile-handle">emma.scrapes</h1>
+                <span class="sf-verified">✓</span>
+                <span class="sf-sandbox-pill">Interactive Creator Sandbox</span>
+              </div>
+              <div class="sf-profile-counts">
+                <span><strong>271</strong> posts</span>
+                <span><strong>32.5K</strong> followers</span>
+                <span><strong>83</strong> following</span>
+              </div>
+              <p class="sf-profile-bio">
+                Digital creator • I scrape websites :) Building Ultimate Web Scraper 🐼
+              </p>
+            </div>
+          </div>
+
+          <div class="sf-sandbox-launcher">
+            <div class="sf-launcher-title">Test ShortFeed on this profile:</div>
+            <div class="sf-launcher-btns">
+              <button type="button" class="sf-launch-btn is-amber" data-run-sort="outlier">
+                ⚡ Sort by Outlier Score
+              </button>
+              <button type="button" class="sf-launch-btn" data-run-sort="views">
+                ▶ Sort by Views
+              </button>
+              <button type="button" class="sf-launch-btn" data-run-sort="likes">
+                ♥ Sort by Likes
+              </button>
+              <button type="button" class="sf-launch-btn" data-run-sort="comments">
+                💬 Sort by Comments
+              </button>
+              <button type="button" class="sf-launch-btn" data-run-sort="oldest">
+                🕒 Sort by Oldest
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mount point where content.js injects #sf-sorted-wrapper -->
+        <div id="sandboxMountArea"></div>
+      </section>
+
+      <!-- VIEW 2: Saved Posts Library Grid -->
+      <section id="viewLibrary" class="sf-view-section" hidden>
+        <div class="sf-library-header">
+          <h2 id="libraryViewTitle" class="sf-view-heading">All Saved Posts</h2>
+          <p id="libraryViewSub" class="sf-view-sub">
+            Every post you bookmark on Instagram, TikTok, YouTube or Facebook lands here with its snapshot metrics, tags and notes.
+          </p>
+        </div>
+
+        <div id="savedPostsGrid" class="sf-saved-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Saved Post Detail & Notes/Tags Inspector Modal -->
+  <div id="savedDetailBackdrop" class="sf-detail-backdrop" hidden>
+    <div class="sf-detail-modal">
+      <div class="sf-detail-header">
+        <h3 id="detailModalTitle">Saved Post Details</h3>
+        <button type="button" id="btnCloseDetailModal" class="sf-close-x">✕</button>
+      </div>
+      <div class="sf-detail-body" id="detailModalBody"></div>
+    </div>
+  </div>
+
+  <script src="../content/content.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>
