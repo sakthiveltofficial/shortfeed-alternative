@@ -13,6 +13,26 @@
   --sf-green: #10b981;
   --sf-radius: 12px;
   --sf-shadow: 0 2px 8px rgba(22, 22, 24, 0.04);
+  --sf-tabs-bg: #f2f1ed;
+  --sf-row-hover: #f4f3ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sf-bg: #141416;
+    --sf-card: #1c1c20;
+    --sf-border: #2a2a30;
+    --sf-border-strong: #3d3d45;
+    --sf-ink: #f4f4f6;
+    --sf-body: #a1a1aa;
+    --sf-muted: #71717a;
+    --sf-amber: #f59e0b;
+    --sf-amber-soft: rgba(245, 158, 11, 0.16);
+    --sf-amber-dark: #fbbf24;
+    --sf-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    --sf-tabs-bg: #121214;
+    --sf-row-hover: rgba(255, 255, 255, 0.06);
+  }
 }
 
 * {
@@ -215,7 +235,7 @@ body {
 .sf-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: #f2f1ed;
+  background: var(--sf-tabs-bg);
   padding: 3px;
   border-radius: 9px;
   gap: 3px;
@@ -320,7 +340,7 @@ body {
 }
 
 .sf-sort-btn:hover {
-  background: #f4f3ef;
+  background: var(--sf-row-hover);
 }
 
 .sf-sort-btn:active {

@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showDownloadButton: true,
     showTranscribeButton: true,
     lastScopeTab: 'posts',
-    lastPostCount: '50',
+    lastPostCount: '25',
     lastDateRange: '30d',
     customPostCount: 75
   };
@@ -64,47 +64,100 @@ document.addEventListener('DOMContentLoaded', async () => {
   settingShowDownload.checked = settings.showDownloadButton !== false;
   settingShowTranscribe.checked = settings.showTranscribeButton !== false;
 
+  function isDateFilterAllowedUrl(rawUrl) {
+    if (!rawUrl) return false;
+    try {
+      const u = new URL(rawUrl);
+      const host = u.hostname.toLowerCase();
+      const parts = u.pathname.split('/').filter(Boolean);
+      const lowerParts = parts.map((p) => p.toLowerCase());
+
+      if (host.includes('instagram.com')) {
+        if (lowerParts.length === 0) return false; // Home feed
+        const reserved = ['explore', 'reels', 'reel', 'p', 'stories', 'direct', 'accounts', 'saved', 'search', 'audio', 'locations'];
+        if (reserved.includes(lowerParts[0])) return false;
+        if (lowerParts.includes('reels') || lowerParts.includes('tagged') || lowerParts.includes('saved')) return false;
+        return lowerParts.length === 1 || (lowerParts.length === 2 && lowerParts[1] === 'posts');
+      }
+
+      if (host.includes('youtube.com')) {
+        if (lowerParts.length === 0) return false; // Home feed
+        if (lowerParts.includes('shorts')) return false; // Shorts feed or channel /shorts tab
+        if (lowerParts[0].startsWith('@')) return true; // /@handle or /@handle/videos
+        if (['channel', 'c', 'user'].includes(lowerParts[0]) && lowerParts.length >= 2) return true;
+        return false;
+      }
+
+      if (host.includes('tiktok.com')) {
+        return lowerParts.length === 1 && lowerParts[0].startsWith('@');
+      }
+
+      if (host.includes('facebook.com')) {
+        if (lowerParts.length === 0 || lowerParts.includes('reels') || lowerParts.includes('watch')) return false;
+        return lowerParts.length === 1;
+      }
+    } catch {}
+    return false;
+  }
+
   if (settings.lastPostCount) selectPostCount.value = settings.lastPostCount;
   if (settings.lastDateRange) selectDateRange.value = settings.lastDateRange;
   if (settings.customPostCount) inputCustomPosts.value = settings.customPostCount;
-  switchScopeTab(settings.lastScopeTab === 'date' ? 'date' : 'posts');
 
   // Detect active tab & platform
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   activeTab = tabs[0] || null;
   const url = activeTab?.url || '';
+  let dateAllowed = false;
 
   if (url.includes('instagram.com')) {
     currentPlatform = 'instagram';
-    const isReels = url.includes('/reels');
-    platformLabel.textContent = isReels ? 'Instagram • Reels Tab' : 'Instagram • Profile / Feed';
+    dateAllowed = isDateFilterAllowedUrl(url);
+    const isReels = url.includes('/reels') || url.includes('/reel/');
+    platformLabel.textContent = dateAllowed
+      ? 'Instagram • Profile'
+      : isReels
+      ? 'Instagram • Reels'
+      : 'Instagram • Home / Feed';
     tabPostsLabel.textContent = isReels ? 'Reels' : 'Posts';
     updatePostLabels(isReels ? 'Reels' : 'Posts');
+    btnSortShares.hidden = false;
   } else if (url.includes('tiktok.com')) {
     currentPlatform = 'tiktok';
-    platformLabel.textContent = 'TikTok • Videos';
+    dateAllowed = isDateFilterAllowedUrl(url);
+    platformLabel.textContent = dateAllowed ? 'TikTok • Profile' : 'TikTok • Feed';
     tabPostsLabel.textContent = 'TikToks';
     updatePostLabels('TikToks');
     btnSortShares.hidden = false;
     btnSortSaves.hidden = false;
   } else if (url.includes('youtube.com')) {
     currentPlatform = 'youtube';
+    dateAllowed = isDateFilterAllowedUrl(url);
     const isShorts = url.includes('/shorts');
-    platformLabel.textContent = isShorts ? 'YouTube • Shorts' : 'YouTube • Channel Videos';
+    platformLabel.textContent = dateAllowed
+      ? 'YouTube • Channel'
+      : isShorts
+      ? 'YouTube • Shorts'
+      : 'YouTube • Home / Feed';
     tabPostsLabel.textContent = isShorts ? 'Shorts' : 'Videos';
     updatePostLabels(isShorts ? 'Shorts' : 'Videos');
-    btnSortComments.hidden = true;
+    btnSortComments.hidden = false;
   } else if (url.includes('facebook.com')) {
     currentPlatform = 'facebook';
-    platformLabel.textContent = 'Facebook • Reels';
+    dateAllowed = isDateFilterAllowedUrl(url);
+    platformLabel.textContent = dateAllowed ? 'Facebook • Profile' : 'Facebook • Reels / Feed';
     tabPostsLabel.textContent = 'Reels';
     updatePostLabels('Reels');
     btnSortShares.hidden = false;
   } else {
     currentPlatform = 'demo';
+    dateAllowed = true;
     platformDot.classList.add('is-demo');
     platformLabel.textContent = 'Ready • Click any sort for Demo';
   }
+
+  tabDate.hidden = !dateAllowed;
+  switchScopeTab('posts');
 
   function updatePostLabels(noun) {
     Array.from(selectPostCount.options).forEach((opt) => {
@@ -137,14 +190,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     customDateWrap.hidden = selectDateRange.value !== 'custom';
   }
 
+  async function notifyLiveDateFilter() {
+    if (!activeTab?.id) return;
+    try {
+      await chrome.tabs.sendMessage(activeTab.id, {
+        type: 'SF_APPLY_DATE_FILTER',
+        payload: {
+          scope: currentScopeTab,
+          datePreset: selectDateRange.value,
+          dateStart: inputDateStart.value || null,
+          dateEnd: inputDateEnd.value || null
+        }
+      });
+    } catch {}
+  }
+
   tabPosts.addEventListener('click', () => {
     switchScopeTab('posts');
     saveSettingsPatch({ lastScopeTab: 'posts' });
+    notifyLiveDateFilter();
   });
 
   tabDate.addEventListener('click', () => {
     switchScopeTab('date');
     saveSettingsPatch({ lastScopeTab: 'date' });
+    if (selectDateRange.value) {
+      notifyLiveDateFilter();
+    }
   });
 
   selectPostCount.addEventListener('change', () => {
@@ -155,6 +227,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   selectDateRange.addEventListener('change', () => {
     customDateWrap.hidden = selectDateRange.value !== 'custom';
     saveSettingsPatch({ lastDateRange: selectDateRange.value });
+    if (selectDateRange.value !== 'custom' || inputDateStart.value || inputDateEnd.value) {
+      notifyLiveDateFilter();
+    }
+  });
+
+  inputDateStart.addEventListener('change', () => {
+    if (currentScopeTab === 'date' && selectDateRange.value === 'custom') {
+      notifyLiveDateFilter();
+    }
+  });
+
+  inputDateEnd.addEventListener('change', () => {
+    if (currentScopeTab === 'date' && selectDateRange.value === 'custom') {
+      notifyLiveDateFilter();
+    }
   });
 
   inputCustomPosts.addEventListener('change', () => {
@@ -179,12 +266,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       selectPostCount.value === 'custom'
         ? Number(inputCustomPosts.value) || 50
         : selectPostCount.value === 'all'
-        ? 9999
+        ? 100000
         : Number(selectPostCount.value) || 25;
 
     const sortOptions = {
       platform: currentPlatform,
-      scope: currentScopeTab, // 'posts' | 'date'
+      scope: dateAllowed || forceDemo ? currentScopeTab : 'posts', // 'posts' | 'date' (date only on profiles)
       postLimit: postCountVal,
       datePreset: selectDateRange.value,
       dateStart: inputDateStart.value || null,

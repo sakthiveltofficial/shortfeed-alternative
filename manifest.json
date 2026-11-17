@@ -9,15 +9,20 @@
     "downloads",
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "*://*.instagram.com/*",
     "*://*.tiktok.com/*",
     "*://*.youtube.com/*",
+    "*://*.ytimg.com/*",
+    "*://*.googlevideo.com/*",
     "*://*.facebook.com/*",
     "*://*.fbcdn.net/*",
-    "*://*.cdninstagram.com/*"
+    "*://*.cdninstagram.com/*",
+    "*://docs.google.com/spreadsheets/*"
   ],
   "action": {
     "default_title": "ShortFeed — Sort by Views or Outlier Score",
@@ -59,6 +64,13 @@
       ],
       "css": ["content/content.css"],
       "js": ["content/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://docs.google.com/spreadsheets/*"
+      ],
+      "js": ["content/sheets-autofill.js"],
       "run_at": "document_idle"
     }
   ],

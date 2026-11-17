@@ -67,8 +67,8 @@
           <div id="panelPosts" class="sf-tab-panel">
             <div class="sf-select-wrap">
               <select id="selectPostCount" class="sf-select">
-                <option value="25">Latest 25 Posts</option>
-                <option value="50" selected>Latest 50 Posts</option>
+                <option value="25" selected>Latest 25 Posts</option>
+                <option value="50">Latest 50 Posts</option>
                 <option value="100">Latest 100 Posts</option>
                 <option value="200">Latest 200 Posts</option>
                 <option value="1000">Latest 1K Posts</option>
@@ -128,14 +128,19 @@
             <span class="sf-sort-arrow">→</span>
           </button>
 
-          <button type="button" class="sf-sort-btn sf-sort-highlight" data-metric="outlier">
-            <span class="sf-sort-icon sf-icon-amber">
-              <svg viewBox="0 0 16 16" fill="currentColor">
-                <path d="M9.2 1.5L3.8 8.6h4.1l-.9 5.9 5.6-7.1H8.5l.7-5.9Z"/>
+          <button type="button" class="sf-sort-btn" data-metric="outlier">
+            <span class="sf-sort-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M9.2 1.5L3.8 8.6h4.1l-.9 5.9 5.6-7.1H8.5l.7-5.9Z" stroke-linejoin="round"/>
               </svg>
             </span>
             <span class="sf-sort-name">Outlier score</span>
-            <span class="sf-outlier-pill">Breakouts</span>
+            <span class="sf-info-icon" title="Finds posts that performed much better than the creator's median">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" style="width:14px;height:14px;color:#9ca3af;">
+                <circle cx="8" cy="8" r="6"/>
+                <path d="M8 7.2v3.6M8 5.1h.01" stroke-linecap="round"/>
+              </svg>
+            </span>
           </button>
 
           <button type="button" class="sf-sort-btn" data-metric="comments" id="btnSortComments">
