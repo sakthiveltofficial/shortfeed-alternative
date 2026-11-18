@@ -1242,11 +1242,18 @@
     if (anyProg) return getFormatUrl(anyProg);
     if (!allowAdaptive) return '';
     const adaptive = pJson?.streamingData?.adaptiveFormats || [];
-    const adapMp4 = adaptive.find((f) => /video\/mp4/i.test(f?.mimeType || '') && getFormatUrl(f));
+    // Prefer H.264 (avc1) over AV1 (av01) so QuickTime/browser players don't freeze on a single frame
+    const adapAvc1 = adaptive.find(
+      (f) => /video\/mp4/i.test(f?.mimeType || '') && /avc1/i.test(f?.mimeType || '') && getFormatUrl(f)
+    );
+    if (adapAvc1) return getFormatUrl(adapAvc1);
+    const adapMp4 = adaptive.find(
+      (f) => /video\/mp4/i.test(f?.mimeType || '') && !/av01/i.test(f?.mimeType || '') && getFormatUrl(f)
+    );
     return adapMp4 ? getFormatUrl(adapMp4) : '';
   }
 
-  // Resolve a direct YouTube stream URL using existing player JSON first, then ANDROID_VR & IOS clients
+  // Resolve a direct YouTube stream URL preferring muxed H.264+AAC (formats) across ANDROID_VR, ANDROID & IOS
   async function fetchPlayableYtStream(videoId, initialPlayerJson = null) {
     const initialUrl = extractDirectYtUrl(initialPlayerJson, false);
     if (initialUrl && !/[?&]c=WEB\b/i.test(initialUrl)) return initialUrl;
@@ -1272,6 +1279,18 @@
         ...(visitorData ? { visitorData } : {})
       },
       {
+        clientName: 'ANDROID',
+        clientVersion: '20.10.38',
+        androidSdkVersion: 35,
+        osName: 'Android',
+        osVersion: '15',
+        deviceMake: 'Google',
+        deviceModel: 'Pixel 9',
+        hl: 'en',
+        gl: 'US',
+        ...(visitorData ? { visitorData } : {})
+      },
+      {
         clientName: 'IOS',
         clientVersion: '20.03.02',
         deviceMake: 'Apple',
@@ -1284,6 +1303,7 @@
       }
     ];
 
+    let adaptiveFallbackUrl = '';
     for (let i = 0; i < playerClients.length; i++) {
       try {
         const client = playerClients[i];
@@ -1303,11 +1323,14 @@
         );
         if (!res.ok) continue;
         const json = await res.json().catch(() => null);
-        const directUrl = extractDirectYtUrl(json, true);
-        if (directUrl) return directUrl;
+        const muxedUrl = extractDirectYtUrl(json, false);
+        if (muxedUrl) return muxedUrl;
+        if (!adaptiveFallbackUrl) {
+          adaptiveFallbackUrl = extractDirectYtUrl(json, true);
+        }
       } catch {}
     }
-    return '';
+    return adaptiveFallbackUrl;
   }
 
   // Active YouTube Innertube enricher for exact Views, Likes, Comments, Publish Dates, Duration & Captions
@@ -1416,6 +1439,11 @@
   // On-demand single-video YouTube stream URL resolver (ANDROID_VR, IOS, then active WEB context)
   window.addEventListener('SF_RESOLVE_YT_STREAM', async (e) => {
     const videoId = String(e.detail?.videoId || '').trim();
+    const visitorData =
+      (typeof window.ytcfg?.get === 'function' &&
+        (window.ytcfg.get('VISITOR_DATA') ||
+          window.ytcfg.get('INNERTUBE_CONTEXT')?.client?.visitorData)) ||
+      '';
     let resolvedUrl = '';
     try {
       if (/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
@@ -1453,7 +1481,7 @@
     } catch {}
     window.dispatchEvent(
       new CustomEvent(`SF_RESOLVED_YT_STREAM_${videoId}`, {
-        detail: { videoId, videoUrl: resolvedUrl }
+        detail: { videoId, videoUrl: resolvedUrl, visitorData }
       })
     );
   });

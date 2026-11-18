@@ -26,6 +26,7 @@
     filterDateEnd: null,
     serverClockOffsetMs: 0,
     hasServerClock: false,
+    ytVisitorData: '',
     renderedLimit: 100,
     isCollecting: false,
     stopRequested: false,
@@ -3490,6 +3491,7 @@
               try { port.disconnect(); } catch {}
               if (ok && chunks.length > 0) {
                 const blob = new Blob(chunks, { type: 'video/mp4' });
+                chunks.length = 0;
                 if (blob.size > 1024) {
                   downloadBlobFile(blob, `${creator}_${code}.mp4`);
                   showToast(`Downloaded ${creator}_${code}.mp4`);
@@ -3497,6 +3499,7 @@
                   return;
                 }
               }
+              chunks.length = 0;
               if (errMsg) showToast(`YouTube download failed (${errMsg})`);
               resolve(false);
             };
@@ -3509,6 +3512,12 @@
                 const arr = new Uint8Array(raw.length);
                 for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
                 chunks.push(arr);
+                if (msg.total > 0 && msg.loaded) {
+                  const pct = Math.min(99, Math.round((msg.loaded / msg.total) * 100));
+                  if (pct % 20 === 0) {
+                    showToast(`Downloading ${creator}_${code}.mp4 (${pct}%)...`);
+                  }
+                }
               } else if (msg.type === 'done') {
                 finish(true);
               } else if (msg.type === 'error') {
@@ -3520,7 +3529,8 @@
             });
             port.postMessage({
               url: media.videoUrl || '',
-              videoId: post.shortcode || ''
+              videoId: post.shortcode || '',
+              visitorData: STATE.ytVisitorData || ''
             });
           });
           if (streamOk) return;
@@ -3658,7 +3668,12 @@
               window.removeEventListener(evtName, onResolved);
               resolve(url || '');
             };
-            const onResolved = (ev) => finish(ev?.detail?.videoUrl || '');
+            const onResolved = (ev) => {
+              if (ev?.detail?.visitorData) {
+                STATE.ytVisitorData = String(ev.detail.visitorData);
+              }
+              finish(ev?.detail?.videoUrl || '');
+            };
             window.addEventListener(evtName, onResolved);
             window.dispatchEvent(
               new CustomEvent('SF_RESOLVE_YT_STREAM', { detail: { videoId: post.shortcode } })
@@ -3680,7 +3695,10 @@
                 }
               }, 5000);
               chrome.runtime.sendMessage(
-                { type: 'SF_RESOLVE_YT_BG', payload: { videoId: post.shortcode } },
+                {
+                  type: 'SF_RESOLVE_YT_BG',
+                  payload: { videoId: post.shortcode, visitorData: STATE.ytVisitorData || '' }
+                },
                 (resp) => {
                   if (done) return;
                   done = true;

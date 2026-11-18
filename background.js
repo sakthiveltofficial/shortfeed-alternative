@@ -19,6 +19,8 @@ const YOUTUBE_VR_UA =
   'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
 const YOUTUBE_IOS_UA =
   'com.google.ios.youtube/20.03.02 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)';
+const YOUTUBE_ANDROID_UA =
+  'com.google.android.youtube/20.10.38 (Linux; U; Android 15; en_US; Pixel 9 Build/AP3A.241005.015) gzip';
 
 async function setupYoutubeHeaderRules() {
   if (!chrome?.declarativeNetRequest?.updateDynamicRules) return;
@@ -56,7 +58,7 @@ async function setupYoutubeHeaderRules() {
       },
       {
         id: 3,
-        priority: 2,
+        priority: 3,
         action: {
           type: 'modifyHeaders',
           requestHeaders: [
@@ -94,7 +96,7 @@ async function setupYoutubeHeaderRules() {
       },
       {
         id: 5,
-        priority: 2,
+        priority: 3,
         action: {
           type: 'modifyHeaders',
           requestHeaders: [
@@ -129,10 +131,48 @@ async function setupYoutubeHeaderRules() {
           urlFilter: '||googlevideo.com/videoplayback*c=IOS',
           resourceTypes: ['media', 'xmlhttprequest', 'other']
         }
+      },
+      {
+        id: 7,
+        priority: 2,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [
+            { header: 'User-Agent', operation: 'set', value: YOUTUBE_ANDROID_UA },
+            { header: 'X-YouTube-Client-Name', operation: 'set', value: '3' },
+            { header: 'X-YouTube-Client-Version', operation: 'set', value: '20.10.38' },
+            { header: 'Origin', operation: 'remove' },
+            { header: 'Referer', operation: 'remove' },
+            { header: 'Cookie', operation: 'remove' }
+          ]
+        },
+        condition: {
+          urlFilter: '||youtube.com/youtubei/v1/player*sf_client=ANDROID',
+          resourceTypes: ['xmlhttprequest', 'other']
+        }
+      },
+      {
+        id: 8,
+        priority: 2,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [
+            { header: 'User-Agent', operation: 'set', value: YOUTUBE_ANDROID_UA },
+            { header: 'Origin', operation: 'remove' },
+            { header: 'Referer', operation: 'remove' }
+          ],
+          responseHeaders: [
+            { header: 'Access-Control-Allow-Origin', operation: 'set', value: '*' }
+          ]
+        },
+        condition: {
+          urlFilter: '||googlevideo.com/videoplayback*c=ANDROID',
+          resourceTypes: ['media', 'xmlhttprequest', 'other']
+        }
       }
     ];
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [1, 2, 3, 4, 5, 6],
+      removeRuleIds: [1, 2, 3, 4, 5, 6, 7, 8],
       addRules
     });
   } catch {}
@@ -312,8 +352,15 @@ function extractBgCandidateUrls(playerJson) {
     if (u) urls.push(u);
   });
   const adaptive = playerJson?.streamingData?.adaptiveFormats || [];
+  // Prefer H.264 (avc1) adaptive MP4 over AV1 (av01) so downloaded files play smoothly without freezing
   adaptive.forEach((f) => {
-    if (/video\/mp4/i.test(f?.mimeType || '')) {
+    if (/video\/mp4/i.test(f?.mimeType || '') && /avc1/i.test(f?.mimeType || '')) {
+      const u = getUrl(f);
+      if (u) urls.push(u);
+    }
+  });
+  adaptive.forEach((f) => {
+    if (/video\/mp4/i.test(f?.mimeType || '') && !/av01/i.test(f?.mimeType || '')) {
       const u = getUrl(f);
       if (u) urls.push(u);
     }
@@ -358,6 +405,18 @@ async function resolveYoutubeStreamInBg(videoId, visitorData = '') {
       deviceModel: 'iPhone16,2',
       osName: 'iPhone',
       osVersion: '18.2.1.22C161',
+      hl: 'en',
+      gl: 'US',
+      ...(visitorData ? { visitorData } : {})
+    },
+    {
+      clientName: 'ANDROID',
+      clientVersion: '20.10.38',
+      androidSdkVersion: 35,
+      osName: 'Android',
+      osVersion: '15',
+      deviceMake: 'Google',
+      deviceModel: 'Pixel 9',
       hl: 'en',
       gl: 'US',
       ...(visitorData ? { visitorData } : {})
@@ -447,47 +506,91 @@ chrome.runtime.onConnect.addListener((port) => {
 
   port.onMessage.addListener(async (msg) => {
     if (aborted) return;
-    const { url, videoId } = msg || {};
+    const { url, videoId, visitorData } = msg || {};
     try {
       let targetUrl = String(url || '').trim();
       const validInitial =
         targetUrl && !/[?&]c=WEB\b/i.test(targetUrl) && (await preflightStreamUrl(targetUrl));
       if (!validInitial) {
-        targetUrl = await resolveYoutubeStreamInBg(videoId);
+        targetUrl = await resolveYoutubeStreamInBg(videoId, visitorData || '');
       }
       if (!targetUrl || !targetUrl.startsWith('http')) {
         port.postMessage({ type: 'error', error: 'No verified YouTube stream URL' });
         return;
       }
 
-      const res = await fetch(targetUrl, { signal: controller.signal });
-      if (!res.ok || !res.body) {
-        port.postMessage({ type: 'error', error: `HTTP ${res.status}` });
+      const streamFromResponse = async (res, baseOffset = 0, knownTotal = 0) => {
+        const total = knownTotal || Number(res.headers.get('content-length')) || 0;
+        const mime = res.headers.get('content-type') || 'video/mp4';
+        const reader = res.body.getReader();
+        let loaded = baseOffset;
+        while (true) {
+          if (aborted) return { ok: false, loaded, total, mime };
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value && value.byteLength > 0) {
+            loaded += value.byteLength;
+            port.postMessage({
+              type: 'chunk',
+              b64: uint8ToBase64(value),
+              loaded,
+              total
+            });
+          }
+        }
+        return { ok: true, loaded, total, mime };
+      };
+
+      let res = await fetch(targetUrl, { signal: controller.signal });
+      if (res.status === 403 || !res.ok || !res.body) {
+        // Fallback: stream using explicit 8MB Range chunks (required by strict ANDROID_VR / ANDROID endpoints)
+        const chunkSpan = 8 * 1024 * 1024;
+        let start = 0;
+        let totalBytes = 0;
+        let lastMime = 'video/mp4';
+        let rangeComplete = false;
+
+        while (!aborted) {
+          const end = start + chunkSpan - 1;
+          let chunkRes = await fetch(targetUrl, {
+            signal: controller.signal,
+            headers: { Range: `bytes=${start}-${end}` }
+          });
+          if (chunkRes.status === 403) {
+            const freshUrl = await resolveYoutubeStreamInBg(videoId, visitorData || '');
+            if (freshUrl && freshUrl !== targetUrl) {
+              targetUrl = freshUrl;
+              chunkRes = await fetch(targetUrl, {
+                signal: controller.signal,
+                headers: { Range: `bytes=${start}-${end}` }
+              });
+            }
+          }
+          if (!chunkRes.ok || !chunkRes.body) break;
+          const cr = chunkRes.headers.get('content-range') || '';
+          const crMatch = cr.match(/\/(\d+)$/);
+          if (crMatch) totalBytes = Number(crMatch[1]) || totalBytes;
+          lastMime = chunkRes.headers.get('content-type') || lastMime;
+          const stepResult = await streamFromResponse(chunkRes, start, totalBytes);
+          if (!stepResult.ok) return;
+          start = stepResult.loaded;
+          if ((totalBytes > 0 && start >= totalBytes) || chunkRes.status === 200) {
+            rangeComplete = true;
+            break;
+          }
+        }
+
+        if (rangeComplete && !aborted) {
+          port.postMessage({ type: 'done', mime: lastMime, loaded: start });
+          return;
+        }
+        port.postMessage({ type: 'error', error: start > 0 ? 'Incomplete video stream (403)' : `HTTP ${res.status}` });
         return;
       }
 
-      const total = Number(res.headers.get('content-length')) || 0;
-      const mime = res.headers.get('content-type') || 'video/mp4';
-      const reader = res.body.getReader();
-      let loaded = 0;
-
-      while (true) {
-        if (aborted) return;
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value && value.byteLength > 0) {
-          loaded += value.byteLength;
-          port.postMessage({
-            type: 'chunk',
-            b64: uint8ToBase64(value),
-            loaded,
-            total
-          });
-        }
-      }
-
-      if (!aborted) {
-        port.postMessage({ type: 'done', mime, loaded });
+      const fullResult = await streamFromResponse(res, 0, 0);
+      if (fullResult.ok && !aborted) {
+        port.postMessage({ type: 'done', mime: fullResult.mime, loaded: fullResult.loaded });
       }
     } catch (err) {
       if (!aborted) {
